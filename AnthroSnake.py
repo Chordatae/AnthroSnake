@@ -7,7 +7,7 @@ from IPython.display import display
 
 """
 This program calculates Weight-for-Age (WFA), Height-for-Age (HFA), and BMI-for-Age (BMIFA) Z-scores for participants 
-aged 0 to 19 years (WFA up to 10 years) based on the provided raw data and standard LMS tables.
+aged 0 to 19 years (WFA up to 10 years) based on the provided raw data the WHO LMS tables.
 
 Based on the methodology described in:
 Computation of Centiles and Z-Scores for Height-for-Age, Weight-for-Age and BMI-for-Age
