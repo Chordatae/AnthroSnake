@@ -36,6 +36,7 @@ Temporary Items
 
 # End of https://www.toptal.com/developers/gitignore/api/macos
 
-# Data files for processing and their output files
+# Data files for processing and their output and log files
 data*
 output*
+Log*
