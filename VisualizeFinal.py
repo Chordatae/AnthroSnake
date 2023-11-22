@@ -14,9 +14,34 @@ TEXT_X_COORDINATE = (-0.05, 0.23, 0.6)
 
 # Function Definitions:
 def isolate_series(data, category_to_isolate):
+    """
+    Isolate a series from a DataFrame.
+    
+    Args:
+    - data (DataFrame): The DataFrame to isolate the series from.
+    - category_to_isolate (str): The column name of the series to isolate.
+
+    Returns:
+    - Series: The isolated series.
+    """
+
     return data[category_to_isolate]
 
 def plot_z_distribution_kde(data, title, x_label, fig, position):
+    """
+    Plot a KDE distribution.
+    
+    Args:
+    - data (Series): The data to plot.
+    - title (str): The title of the plot.
+    - x_label (str): The label for the x-axis.
+    - fig (Figure): The figure to plot on.
+    - position (int): The subplot position.
+
+    Returns:
+    - Axex: The Axes object of the plot.
+    """
+
     ax = fig.add_subplot(position)
     sns.kdeplot(data, ax=ax, fill=True)
     ax.set_title(title)
@@ -27,29 +52,63 @@ def plot_z_distribution_kde(data, title, x_label, fig, position):
     return ax
 
 def shade_prevalence_on_distribution(data, ax, threshold, color, above=False):
+    """
+    Shade a portion of a given distribution based on an x-value threshold.
+
+    Args:
+    - data (Series): The data to plot.
+    - ax (Axes): The Axes object to plot on.
+    - threshold (float): The threshold x-value for shading.
+    - color (str): The color of the shaded area.
+    - above (bool): Whether to shade above the threshold. Defaults to False. 
+    """
+
     poly_collections = ax.collections
     color_to_match = poly_collections[0].get_facecolor()[0]
     kde = sns.kdeplot(data, ax=ax, color=color_to_match)
     x_values = kde.get_lines()[0].get_xdata()
     y_values = kde.get_lines()[0].get_ydata()
     if not above:
-        mask = x_values <= threshold   #creates a "boolean array" (a list of [True, False, True, True, etc]) the same length as x_values, based on whether or not the conditional evaluates to True for each entry in x_values. This works because x_values is a numpy array.
+        mask = x_values <= threshold
     else:
         mask = x_values >= threshold
-    x_fill = x_values[mask]  #this is doing numpy's "boolean indexing". creates a new array x_fill based on the boolean array "mask" we made before. see notebook for simple example.
+    x_fill = x_values[mask]
     y_fill = y_values[mask]
     kde.fill_between(x_fill, y_fill, color=color, alpha=1)
 
 def compute_mean_with_CI(data, confidence):
+    """
+    Compute the mean and confidence interval for a dataset.
+    
+    Args:
+    - data (Series): The data to compute the mean and CI for.
+    - confidence (float): The confidence level for the CI. Value between 0 and 1.
+
+    Returns:
+    - tuple: Mean and confidence interval.
+    """
+
     n = len(data)
     mean = data.mean()
     mean_CI = stats.t.interval(confidence=confidence,
-                               df=n-1,
-                               loc=mean,
+                               df=n-1, loc=mean,
                                scale=(data.std()/math.sqrt(n)))
     return mean, mean_CI
 
 def compute_prevalence_rate_with_CI(data, threshold, confidence, above=False):
+    """
+    Compute the prevalence rate and confidence interval for a dataset.
+
+    Args:
+    - data (Series): The data to compute the prevalence for.
+    - threshold (float): The threshold for determining prevalence
+    - confidence (float): The confidence level for the CI. Value between 0 and 1.
+    - above (bool): Whether to consider values above the threshold. Defaults to False.
+
+    Returns:
+    - tuple: Prevalence rate and confidence interval.
+    """
+
     n = len(data)
     if not above:
         num_malnourished = (data < threshold).sum()
@@ -61,8 +120,17 @@ def compute_prevalence_rate_with_CI(data, threshold, confidence, above=False):
                                             scale=math.sqrt((p_malnourished*(1-p_malnourished))/n))
     return p_malnourished, p_malnourished_CI
 
+def display_text_below_axes(ax, text, loc, color=None):
+    """
+    Display a text annotation below a set of axes. Optionally, display a colored box next to the text.
 
-def display_text_below_axis(ax, text, loc, color=None):
+    Args:
+    - ax (Axes): The axes to display text below.
+    - text (str): The text to display.
+    - loc (int): The location index for the x-coordinate to display the text, based on predefined coordinates.
+    - color (str, optional): The color of the box to display. Defaults to None.
+    """
+
     # First, draw the text to get its size
     text_art = ax.text(x=TEXT_X_COORDINATE[loc], y=-0.2, s=text, transform=ax.transAxes,
                        horizontalalignment='left', verticalalignment='top',
@@ -87,33 +155,54 @@ def display_text_below_axis(ax, text, loc, color=None):
                                        transform=ax.transAxes, color=color,
                                        clip_on=False))
 
-def display_mean_below_axis(ax, mean, CI_tuple, loc):
+def display_mean_below_axes(ax, mean, CI_tuple, loc):
     """
-    Accepts:
-    - loc: either 0, 1, or 2
+    Display a mean value and its confidence interval below a set of axes.
+
+    Args:
+    - ax (Axis): The axes to display the mean below.
+    - mean (float): The mean value to display.
+    - CI_tuple (tuple[float, float]): The lower and upper bounds of the confidence interval of the mean.
+    - loc (int): The location index for the x-coordinate to display the mean value, based on predefined coordinates.
     """
+
     text = f"Mean: {mean:.2f}\n95% CI: [{CI_tuple[0]:.2f}, {CI_tuple[1]:.2f}]"
-    display_text_below_axis(ax, text, loc)
+    display_text_below_axes(ax, text, loc)
 
 def display_all_means(axes, means, CI_tuples, loc):
+    """
+    Display mean values and their confidence intervals below each set of axes. 
+
+    Args:
+    - axes (Iterable[Axes]): All of the Axes objects to be displayed under.
+    - means (Iterable[float]): All of the mean values to be displayed.
+    - CI_tuples (Iterable[Tuple[float, float]]): All of the confidence intervals to display
+    - loc (int): The location index for the x-coordinate to display each mean value, based on predefined coordinates.
+    """
+
     for ax, mean, CI_tuple in zip(axes, means, CI_tuples):
-        display_mean_below_axis(ax, mean, CI_tuple, loc)
+        display_mean_below_axes(ax, mean, CI_tuple, loc)
 
+def display_prevalence_below_axes(ax, malnourishment_type, prevalence, CI_tuple, loc, color=None):
+    """
+    Display a malnourishment prevalence rate and its confidence interval below a set of axes. Optionally, display a colored box next to the prevalence rate.
+    
+    Args:
+    - ax (Axes): The axes to display the prevalence rate below.
+    - malnourishment_type (str): The type of malnourishment which prevalence of is being displayed.
+    - prevalence (float): The prevalence rate to display.
+    - CI_tuple (Tuple[float, float]): The lower and upper bounds of the confidence interval of the prevalence rate.
+    - loc (int): The location index for the x-coordinate to display the prevalence rate, based on predefined coordinates.
+    - color (str, optional): The color of the box to display. Defaults to None.
+    """
 
-def display_prevalence_below_axis(ax, malnourishment_type, prevalence, CI_tuple, loc, color):
     text = f"{malnourishment_type} prevalence: {prevalence:.1%}\n95% CI: [{CI_tuple[0]:.1%}, {CI_tuple[1]:.1%}]"
-    display_text_below_axis(ax, text, loc, color)
+    display_text_below_axes(ax, text, loc, color)
 
-
-
-# Script body:
-# def main(): indent the body, then uncomment. I'll do this later.
-
-
-# Importing and prepping data:
-# importing from csv and setting the 0th column as the index.
+# Indent body and uncomment this. Doesn't seem to work when running in interactive window in VS Code.
+# def main():
+# Import and prep data:
 data_with_z_scores = pd.read_csv('output_with_z_scores.csv', index_col=0)
-print(data_with_z_scores)
 
 # Isolate data on kids over 60 months old, for overweight/obese prevalence.
 data_over_60_months = data_with_z_scores[data_with_z_scores.age_months > 60].reset_index(drop=True)
@@ -132,13 +221,11 @@ hfa_series = all_z_score_series["hfa_z_score"]
 bmifa_series = all_z_score_series["bmifa_z_score"]
 over_60_mo_bmifa_series = all_z_score_series["over_60_months_bmifa_z_score"]
 
-#trimming the over 10y/o kids out of wfa_series
+#Trim subjects over 10 years old out of the wfa_series:
 wfa_series = wfa_series[wfa_series.notna()].reset_index(drop=True)
 
-#maybe we move computation of mean z-scores and malnourishment prevalences right here?
-
-#Plotting data and computing aggregates/prevalence rates:
-#Creating the overall figures which the subplots will go on:
+#Plot data and compute aggregates/prevalence rates:
+#Create the overall figures which the subplots will go on:
 fig1 = plt.figure(figsize=(8, 15))
 gs = gridspec.GridSpec(6, 1, height_ratios=[1, 0.3, 1, 0.3, 1, 0.3])
 blank_ax = fig1.add_subplot(gs[5])
@@ -160,9 +247,7 @@ sns.kdeplot(age_series, ax=age_ax, fill=True)
 age_ax.set_title("Distribution of Participant Ages")
 age_ax.set_xlabel("Age (Months)")
 
-#TODO: add age distribution. Right here?
-
-#Shading prevalences of malnourishment:
+#Shade prevalences of malnourishment:
 shade_prevalence_on_distribution(wfa_series, wfa_ax, threshold=-2, color='#FFDFBA') #underweight
 shade_prevalence_on_distribution(wfa_series, wfa_ax, threshold=-3, color='#FFB3BA') #severly underweight
 shade_prevalence_on_distribution(hfa_series, hfa_ax, threshold=-2, color='#FFDFBA') #stunting
@@ -171,7 +256,7 @@ shade_prevalence_on_distribution(bmifa_series, bmifa_ax, threshold=-2, color='#F
 shade_prevalence_on_distribution(over_60_mo_bmifa_series, over_60_mo_bmifa_ax, threshold=1, above=True, color='#FFDFBA') #Overweight
 shade_prevalence_on_distribution(over_60_mo_bmifa_series, over_60_mo_bmifa_ax, threshold=2, above=True, color='#FFB3BA') #Obese
 
-#Computing mean z-scores:
+#Compute mean z-scores:
 wfa_mean, wfa_CI = compute_mean_with_CI(wfa_series, 0.95)
 hfa_mean, hfa_CI = compute_mean_with_CI(hfa_series, 0.95)
 bmifa_mean, bmifa_CI = compute_mean_with_CI(bmifa_series, 0.95)
@@ -179,10 +264,10 @@ bmifa_mean, bmifa_CI = compute_mean_with_CI(bmifa_series, 0.95)
 all_means = (wfa_mean, hfa_mean, bmifa_mean)
 all_mean_CIs = (wfa_CI, hfa_CI, bmifa_CI)
 
-#Displaying means w/ CIs on figure:
+#Display means w/ CIs on figure:
 display_all_means(fig1_axes, all_means, all_mean_CIs, 0)
 
-#Computing malnourishment prevalences: 
+#Compute malnourishment prevalences: 
 p_underweight, p_underweight_CI = compute_prevalence_rate_with_CI(wfa_series, threshold=-2, confidence=0.95) #underweight
 p_sev_underweight, p_sev_underweight_CI = compute_prevalence_rate_with_CI(wfa_series, threshold=-3, confidence=0.95) #severely underweight
 p_stunting, p_stunting_CI = compute_prevalence_rate_with_CI(hfa_series, threshold=-2, confidence=0.95) #stunting
@@ -191,15 +276,15 @@ p_thin, p_thin_CI = compute_prevalence_rate_with_CI(bmifa_series, threshold=-2, 
 p_overweight, p_overweight_CI = compute_prevalence_rate_with_CI(over_60_mo_bmifa_series, threshold=1, above=True, confidence=0.95) #overweight
 p_obese, p_obese_CI = compute_prevalence_rate_with_CI(over_60_mo_bmifa_series, threshold=2, above=True, confidence=0.95) #obese
 
-# Displaying prevalences w/ CIs on figure:
+# Display prevalences w/ CIs on figure:
 # Note: some of these prevalences have thresholds (ie 2.5% is low, 5% is medium, etc. Don't know exact numbers). Figure them out and add them in.
-display_prevalence_below_axis(wfa_ax, "Underweight", p_underweight, p_underweight_CI, 1, '#FFDFBA')
-display_prevalence_below_axis(wfa_ax, "Severely underweight", p_sev_underweight, p_sev_underweight_CI, 2, '#FFB3BA')
-display_prevalence_below_axis(hfa_ax, "Stunting", p_stunting, p_stunting_CI, 1, '#FFDFBA')
-display_prevalence_below_axis(hfa_ax, "Severly stunting", p_sev_stunting, p_sev_stunting_CI, 2, '#FFB3BA')
-display_prevalence_below_axis(bmifa_ax, "Thin", p_thin, p_thin_CI, 1, '#FFDFBA')
-display_prevalence_below_axis(over_60_mo_bmifa_ax, "Overweight", p_overweight, p_overweight_CI, 1, '#FFDFBA')
-display_prevalence_below_axis(over_60_mo_bmifa_ax, "Obese", p_obese, p_obese_CI, 2, '#FFB3BA')
+display_prevalence_below_axes(wfa_ax, "Underweight", p_underweight, p_underweight_CI, 1, '#FFDFBA')
+display_prevalence_below_axes(wfa_ax, "Severely underweight", p_sev_underweight, p_sev_underweight_CI, 2, '#FFB3BA')
+display_prevalence_below_axes(hfa_ax, "Stunting", p_stunting, p_stunting_CI, 1, '#FFDFBA')
+display_prevalence_below_axes(hfa_ax, "Severly stunting", p_sev_stunting, p_sev_stunting_CI, 2, '#FFB3BA')
+display_prevalence_below_axes(bmifa_ax, "Thin", p_thin, p_thin_CI, 1, '#FFDFBA')
+display_prevalence_below_axes(over_60_mo_bmifa_ax, "Overweight", p_overweight, p_overweight_CI, 1, '#FFDFBA')
+display_prevalence_below_axes(over_60_mo_bmifa_ax, "Obese", p_obese, p_obese_CI, 2, '#FFB3BA')
 
 
 #keeping these at the bottom:
