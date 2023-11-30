@@ -7,7 +7,7 @@ from IPython.display import display
 
 """
 This program calculates Weight-for-Age (WFA), Height-for-Age (HFA), and BMI-for-Age (BMIFA) Z-scores for participants 
-aged 0 to 19 years (WFA up to 10 years) based on the provided raw data the WHO LMS tables.
+aged 0 to 19 years (WFA up to 10 years) based on the provided raw data and the WHO Child Growth Standards.
 
 Based on the methodology described in:
 Computation of Centiles and Z-Scores for Height-for-Age, Weight-for-Age and BMI-for-Age
@@ -37,9 +37,9 @@ DAYS_PER_MONTH = 30.4375
 MAX_AGE_MONTHS_FOR_CALC = 228
 MAX_AGE_MONTHS_FOR_WFA = 120
 LMS_FILE_NAMES = {
-    'wfa': ("wfa_boys_0_to_10_years_LMS.csv", "wfa_girls_0_to_10_years_LMS.csv"),
-    'hfa': ("hfa_boys_0_to_19_years_LMS.csv", "hfa_girls_0_to_19_years_LMS.csv"),
-    'bmifa': ("BMIfa_boys_0_to_19_years_LMS.csv", "BMIfa_girls_0_to_19_years_LMS.csv")
+    'wfa': ("LMS_tables/wfa_boys_0_to_10_years_LMS.csv", "LMS_tables/wfa_girls_0_to_10_years_LMS.csv"),
+    'hfa': ("LMS_tables/hfa_boys_0_to_19_years_LMS.csv", "LMS_tables/hfa_girls_0_to_19_years_LMS.csv"),
+    'bmifa': ("LMS_tables/BMIfa_boys_0_to_19_years_LMS.csv", "LMS_tables/BMIfa_girls_0_to_19_years_LMS.csv")
 }
 DEFAULT_OUTPUT_NAME = "output_with_z_scores.csv"
 
@@ -169,7 +169,7 @@ class Participant:
     
     def set_age_months(self, input_age_months: Optional[str]) -> Optional[int]:
         """
-        Calculates the age of the participant in months based on the participant's date of birth and visit date.
+        Calculates the age of the participant in completed months based on the participant's date of birth and visit date.
         If data is unavailable, uses the provided age in months.
         
         Args:
@@ -186,7 +186,7 @@ class Participant:
             age_days = (self.date_of_visit - self.birthday).days
             if age_days < 0:
                 raise ValueError(f"date_of_visit ({self.date_of_visit}) cannot be before birthday ({self.birthday}). If values are unknown, leave blank.")
-            return int(round(age_days / DAYS_PER_MONTH))
+            return int(age_days / DAYS_PER_MONTH)
         
         if input_age_months is None:
             return None
@@ -253,21 +253,19 @@ class Participant:
             SD23 = M*(1+(-2*L*S))**(1/L) - SD3
             z = -3 + (x-SD3)/SD23
             
-        setattr(self, z_string, z)
+        setattr(self, z_string, round(z, 2))
     
     
     def calc_z_score_standard(self) -> None:
         """Calculates the z-score for height-for-age using the standard score formula and sets it as an instance variable."""
 
         x = self.height
-        L = self.L
         M = self.M
-        S = self.S
         SD = self.SD
         
         z = (x-M)/SD    
         
-        self.hfa_z_score = z
+        self.hfa_z_score = round(z, 2)
 
 
 def import_LMS_table(filename: str) -> List[dict]:
@@ -431,6 +429,7 @@ def main():
 
     output_df = pd.DataFrame([participant.__dict__ for participant in all_participant_objects])
     output_df.drop(['L', 'M', 'S', 'SD'], axis=1, inplace=True)
+    output_df['BMI'] = output_df['BMI'].round(2)
     
     display(output_df)
 
@@ -438,6 +437,8 @@ def main():
     if not output_file_name:
         output_file_name = DEFAULT_OUTPUT_NAME
     output_df.to_csv(output_file_name)
+
+    # TODO: Add option to output df instead? This is what data visualization will want
     
 
 if __name__ == "__main__":
