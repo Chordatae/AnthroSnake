@@ -40,3 +40,10 @@ Temporary Items
 data*
 output*
 Log*
+test*
+
+# Files generated during creation of executable
+build
+dist 
+__pycache__
+AnthroExecutable_Draft1.spec
