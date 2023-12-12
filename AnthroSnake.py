@@ -211,8 +211,8 @@ class Participant:
                              "Input must be a positive number. If unknown, leave blank or provide birthday and date_of_visit.")
             
         return age_months
-        
-        
+
+
     # Methods used for assignment of individual LMS values and z-scores
     def assign_LMS_values(self, LMS_table: List[dict]) -> None:
         """
