@@ -33,10 +33,10 @@ def shade_prevalence_on_distribution(data, ax, threshold, color, above=False):
     x_values = kde.get_lines()[0].get_xdata()
     y_values = kde.get_lines()[0].get_ydata()
     if not above:
-        mask = x_values <= threshold   #creates a "boolean array" (a list of [True, False, True, True, etc]) the same length as x_values, based on whether or not the conditional evaluates to True for each entry in x_values. This works because x_values is a numpy array.
+        mask = x_values <= threshold
     else:
         mask = x_values >= threshold
-    x_fill = x_values[mask]  #this is doing numpy's "boolean indexing". creates a new array x_fill based on the boolean array "mask" we made before. see notebook for simple example.
+    x_fill = x_values[mask]
     y_fill = y_values[mask]
     kde.fill_between(x_fill, y_fill, color=color, alpha=1)
 
@@ -56,8 +56,7 @@ def compute_prevalence_rate_with_CI(data, threshold, confidence, above=False):
     else:
         num_malnourished = (data > threshold).sum()
     p_malnourished = (num_malnourished/n)
-    p_malnourished_CI = stats.norm.interval(confidence=confidence,
-                                            loc=p_malnourished,
+    p_malnourished_CI = stats.norm.interval(confidence=confidence, loc=p_malnourished,
                                             scale=math.sqrt((p_malnourished*(1-p_malnourished))/n))
     return p_malnourished, p_malnourished_CI
 

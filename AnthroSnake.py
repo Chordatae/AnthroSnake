@@ -1,3 +1,5 @@
+import os
+import sys
 import pandas as pd
 import csv
 from datetime import datetime
@@ -6,8 +8,8 @@ from typing import Optional, List, Literal, Dict, Tuple
 from IPython.display import display
 
 """
-This program calculates Weight-for-Age (WFA), Height-for-Age (HFA), and BMI-for-Age (BMIFA) Z-scores for participants 
-aged 0 to 19 years (WFA up to 10 years) based on the provided raw data the WHO LMS tables.
+This program calculates Weight-for-Age (WFA), Height-for-Age (HFA), and BMI-for-Age (BMIFA) Z-scores
+for participants aged 0 to 19 years (WFA up to 10 years) based on the provided raw data and the WHO Child Growth Standards.
 
 Based on the methodology described in:
 Computation of Centiles and Z-Scores for Height-for-Age, Weight-for-Age and BMI-for-Age
@@ -15,8 +17,8 @@ published by the World Health Organization (WHO).
 
 Features:
 - Imports standard LMS tables for boys and girls to use as reference datasets.
-- Accepts raw data from a CSV file with specific columns: number (optional identifier), birthday, sex, height, weight, 
-  date_of_visit, and age_months (optional if birthday and date_of_visit are provided).
+- Accepts raw data from a CSV file with specific columns: number (optional identifier), birthday, sex, 
+  height, weight, date_of_visit, and age_months (optional if birthday and date_of_visit are provided).
 - Handles missing data and performs necessary data transformations.
 - Computes the Z-scores for HFA, WFA, and BMIFA for each participant.
 - Outputs the results in a structured DataFrame, with the option to save as a CSV file.
@@ -36,17 +38,18 @@ the computed Z-scores in a tabular format and offer an option to save them to a 
 DAYS_PER_MONTH = 30.4375
 MAX_AGE_MONTHS_FOR_CALC = 228
 MAX_AGE_MONTHS_FOR_WFA = 120
-LMS_FILE_NAMES = {
-    'wfa': ("wfa_boys_0_to_10_years_LMS.csv", "wfa_girls_0_to_10_years_LMS.csv"),
-    'hfa': ("hfa_boys_0_to_19_years_LMS.csv", "hfa_girls_0_to_19_years_LMS.csv"),
-    'bmifa': ("BMIfa_boys_0_to_19_years_LMS.csv", "BMIfa_girls_0_to_19_years_LMS.csv")
+LMS_FILE_PATHS = {
+    'wfa': ("LMS_tables/wfa_boys_0_to_10_years_LMS.csv", "LMS_tables/wfa_girls_0_to_10_years_LMS.csv"),
+    'hfa': ("LMS_tables/hfa_boys_0_to_19_years_LMS.csv", "LMS_tables/hfa_girls_0_to_19_years_LMS.csv"),
+    'bmifa': ("LMS_tables/BMIfa_boys_0_to_19_years_LMS.csv", "LMS_tables/BMIfa_girls_0_to_19_years_LMS.csv")
 }
 DEFAULT_OUTPUT_NAME = "output_with_z_scores.csv"
 
 # For IPython applications:
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
-logging.basicConfig(filename='LogOutput_1.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filemode='w')
+logging.basicConfig(filename='LogOutput_1.log', level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s', filemode='w')
 
 
 class Participant:
@@ -61,7 +64,8 @@ class Participant:
         - height (float|str): Height in centimeters.
         - weight (float|str): Weight in kilograms.
         - date_of_visit (str): Date of the visit in format "MM/DD/YYYY".
-        - age_months (float|str): Age in months. Calculated from birthday and date_of_visit if both values are present. Otherwise, accepts the provided value.
+        - age_months (float|str): Age in months. Calculated from birthday and date_of_visit if both values are present.
+          Otherwise, accepts the provided value.
 
         Attributes:
         - BMI (float): Calculated BMI if height and weight are available, else None.
@@ -87,7 +91,8 @@ class Participant:
         return str(self.__dict__)
     
     
-    # Helper Methods for __init__ which check the validity of input data and raise errors accordingly. None values are returned as None.
+    # Helper Methods for __init__ which check the validity of input data and raise errors accordingly. 
+    # None values are returned as None.
     def try_parse_date(self, date_string: Optional[str]) -> Optional[datetime.date]:
         """
         Attempts to parse a string into a Date object using the MM/DD/YYYY format.
@@ -108,9 +113,10 @@ class Participant:
         try:
             return datetime.strptime(date_string, "%m/%d/%Y").date()
         except ValueError:
-            raise ValueError(f"Unable to understand {date_string} in 'birthday'/'date_of_vist' field. Please ensure dates are in MM/DD/YYYY format.")
-      
-    
+            raise ValueError(f"Unable to understand {date_string} in 'birthday'/'date_of_vist' field. "
+                             "Please ensure dates are in MM/DD/YYYY format.")
+
+
     def try_assign_sex(self, input_string: Optional[str]) -> Optional[str]:
         """
         Determines the gender based on the provided input string.
@@ -136,7 +142,8 @@ class Participant:
         elif input_string in female_vals:
             return 'F'
         else:
-            raise ValueError(f"Unable to understand {input_string} in 'sex' field. Accepted values: Male = 1/M/m; Female = 2/F/f. If unknown, leave blank.")
+            raise ValueError(f"Unable to understand {input_string} in 'sex' field. "
+                             "Accepted values: Male = 1/M/m; Female = 2/F/f. If unknown, leave blank.")
       
     
     def try_convert_float(self, value_string: Optional[str]) -> Optional[float]:
@@ -159,7 +166,8 @@ class Participant:
         try:
             float_val = float(value_string)
         except (ValueError, TypeError):
-            raise ValueError(f"Unable to understand {value_string} in 'height'/'weight' field. Input must be a number. If unknown, leave blank.")
+            raise ValueError(f"Unable to understand {value_string} in 'height'/'weight' field. "
+                             "Input must be a number. If unknown, leave blank.")
         
         if float_val <= 0:
             raise ValueError(f"Value {float_val} in 'height'/'weight' field must be positive.")
@@ -169,7 +177,7 @@ class Participant:
     
     def set_age_months(self, input_age_months: Optional[str]) -> Optional[int]:
         """
-        Calculates the age of the participant in months based on the participant's date of birth and visit date.
+        Calculates the age of the participant in completed months based on the participant's date of birth and visit date.
         If data is unavailable, uses the provided age in months.
         
         Args:
@@ -185,8 +193,9 @@ class Participant:
         if self.birthday and self.date_of_visit:
             age_days = (self.date_of_visit - self.birthday).days
             if age_days < 0:
-                raise ValueError(f"date_of_visit ({self.date_of_visit}) cannot be before birthday ({self.birthday}). If values are unknown, leave blank.")
-            return int(round(age_days / DAYS_PER_MONTH))
+                raise ValueError(f"date_of_visit ({self.date_of_visit}) cannot be before birthday ({self.birthday}). "
+                                 "If values are unknown, leave blank.")
+            return int(age_days / DAYS_PER_MONTH)
         
         if input_age_months is None:
             return None
@@ -194,10 +203,12 @@ class Participant:
         try:
             age_months = int(round(float(input_age_months)))
         except ValueError:
-            raise ValueError(f"Unable to understand {input_age_months} in 'age_months' field. Input must be a positive number. If unknown, leave blank or provide birthday and date_of_visit.")
+            raise ValueError(f"Unable to understand {input_age_months} in 'age_months' field. "
+                             "Input must be a positive number. If unknown, leave blank or provide birthday and date_of_visit.")
         
         if age_months < 0:
-            raise ValueError(f"Unable to understand {input_age_months} in 'age_months' field. Input must be a positive number. If unknown, leave blank or provide birthday and date_of_visit.")
+            raise ValueError(f"Unable to understand {input_age_months} in 'age_months' field. "
+                             "Input must be a positive number. If unknown, leave blank or provide birthday and date_of_visit.")
             
         return age_months
         
@@ -222,11 +233,12 @@ class Participant:
         
     def calc_z_score_boxcox(self, indicator_type: Literal['wfa', 'bmifa']) -> None:
         """
-        Applies Cole's adaptation of the Box-Cox transformation to calculate a z-score for either weight-for-age (wfa) or BMI-for-age (bmifa) and sets this z-score
-        as an instance variable.
+        Applies Cole's adaptation of the Box-Cox transformation to calculate a z-score for either weight-for-age (wfa) 
+        or BMI-for-age (bmifa) and sets this z-score as an instance variable.
         
         Args:
-        - indicator_type (str): Type of anthropometric indicator for which the z-score is to be calculated. Accepted values include 'wfa' and 'bmifa'.
+        - indicator_type (str): Type of anthropometric indicator for which the z-score is to be calculated. 
+          Accepted values include 'wfa' and 'bmifa'.
         """
         
         if indicator_type=='wfa':
@@ -253,29 +265,27 @@ class Participant:
             SD23 = M*(1+(-2*L*S))**(1/L) - SD3
             z = -3 + (x-SD3)/SD23
             
-        setattr(self, z_string, z)
+        setattr(self, z_string, round(z, 2))
     
     
     def calc_z_score_standard(self) -> None:
         """Calculates the z-score for height-for-age using the standard score formula and sets it as an instance variable."""
 
         x = self.height
-        L = self.L
         M = self.M
-        S = self.S
         SD = self.SD
         
         z = (x-M)/SD    
         
-        self.hfa_z_score = z
+        self.hfa_z_score = round(z, 2)
 
 
-def import_LMS_table(filename: str) -> List[dict]:
+def import_LMS_table(file_path: str) -> List[dict]:
     """
     Imports a provided CSV file containing the LMS values for a given gender and indicator.
     
     Args:
-    - filename (str): The name of the CSV file (including the .csv extension) which contains the LMS table.
+    - file_path (str): The path of the CSV file (including the .csv extension) which contains the LMS table.
     
     Returns:
     - LMS_table (List[dict]): A list of dictionaries each mapping keys ('L', 'M', 'S', and optionally 'SD') to their respective values.
@@ -286,7 +296,7 @@ def import_LMS_table(filename: str) -> List[dict]:
     """
     
     LMS_table = []
-    with open(filename, newline='') as LMS_table_file:
+    with open(file_path, newline='') as LMS_table_file:
         reader = csv.DictReader(LMS_table_file)
         for row in reader:
             LMS_table.append(row)
@@ -294,23 +304,24 @@ def import_LMS_table(filename: str) -> List[dict]:
     return LMS_table
     
     
-def import_all_LMS_tables(LMS_file_names: Dict[str, Tuple[str, str]]) -> dict:
+def import_all_LMS_tables(LMS_file_paths: Dict[str, Tuple[str, str]]) -> dict:
     """
     Imports LMS tables for multiple indicator types from specified CSV files.
 
-    Given a dictionary of indicator types (e.g., 'wfa', 'hfa', 'bmifa') mapped to tuples containing male and female CSV file names,
+    Given a dictionary of indicator types (e.g., 'wfa', 'hfa', 'bmifa') mapped to tuples containing male and female CSV file paths,
     this function reads the data and returns a nested dictionary structure. Each indicator type maps to another dictionary containing 
     the 'M' and 'F' keys, which represent the LMS data for males and females respectively.
 
     Parameters:
-    - LMS_file_names (dict): A dictionary where the key is the indicator type and the value is a tuple containing the male and female CSV file names respectively.
+    - LMS_file_paths (dict): A dictionary where the key is the indicator type and the value is a tuple containing 
+      the male and female CSV file paths respectively.
 
     Returns:
     - all_LMS_tables (dict): A nested dictionary containing LMS data for each indicator type, separated by gender.
 
     Example:
         Input:
-        LMS_file_names = {
+        LMS_file_paths = {
             'wfa': ('wfa_boys_0_to_10_years_LMS.csv', 'wfa_girls_0_to_10_years_LMS.csv'),
             ...
         }
@@ -326,11 +337,40 @@ def import_all_LMS_tables(LMS_file_names: Dict[str, Tuple[str, str]]) -> dict:
     """
     
     all_LMS_tables = {}
-    for indicator_type, (male_file_name, female_file_name) in LMS_file_names.items():
+    for indicator_type, (male_file_name, female_file_name) in LMS_file_paths.items():
         all_LMS_tables[indicator_type] = {'M': import_LMS_table(male_file_name), 'F': import_LMS_table(female_file_name)}
     return all_LMS_tables
     
+
+def get_input_csv_path():
+    """
+    TODO: Docstring here!
+    """
+
+    instructions = """
+    This program calculates Weight-for-Age (WFA), Height-for-Age (HFA), and BMI-for-Age (BMIFA) Z-scores for participants
+    aged 0 to 19 years (WFA up to 10 years) based on the provided raw data and the WHO Child Growth Standards.
+
+    Please save your data in a CSV file with column headers: 'number', 'birthday', 'sex', 'height', 'weight', 'date_of_visit', and 'age_months'.
+    The order of columns and the presence of other extraneous columns is unimportant.
+    All dates should be in MM/DD/YYYY format. 'age_months' may be omitted if both 'birthday' and 'date_of_visit' are present.
+    Weight should be in kilograms and height in centimeters.
+    Missing data will result in skipped computation accordingly. 'number' is for subject tracking only.
     
+    Enter the relative or absolute path to the CSV file containing your data. For example: 'data/input_data.csv'.
+    """
+    print(instructions)
+    while True:
+        file_path = input("Enter the name of the CSV file containing your data (including the .csv extension), or type 'exit' to quit: ")
+        if file_path.lower() == 'exit':
+            print("Exiting the program.")
+            sys.exit()
+        if os.path.exists(file_path):
+            return file_path
+        else:
+            print("File not found. Please enter the correct file path.")
+
+
 def import_participant_data(filename: str) -> List[Participant]:
     """
     Imports participant data from a provided CSV file and creates Participant objects.
@@ -383,11 +423,13 @@ def compute_participants(participants: List[Participant], LMS_dict: Dict[str, Di
         number = participant.number
         
         if age_months is None or sex is None:
-            logging.warning("Participant #%s: Participant missing age (%s) or sex (%s) or both. Skipping computation.", number, age_months, sex)
+            logging.warning("Participant #%s: Participant missing age (%s) or sex (%s) or both. Skipping computation.", 
+                            number, age_months, sex)
             continue
             
         if age_months > MAX_AGE_MONTHS_FOR_CALC:
-            logging.warning("Participant #%s: Participant aged 19 or older (%s months). Skipping computation.", number, age_months)
+            logging.warning("Participant #%s: Participant aged 19 or older (%s months). Skipping computation.", 
+                            number, age_months)
             continue
         
         # Weight-for-Age Calculation
@@ -397,9 +439,11 @@ def compute_participants(participants: List[Participant], LMS_dict: Dict[str, Di
                 participant.assign_LMS_values(LMS_table)
                 participant.calc_z_score_boxcox('wfa')
             else:
-                logging.warning("Participant #%s: Participant aged 10 or older (%s months). Unable to calculate wfa.", number, age_months)
+                logging.warning("Participant #%s: Participant aged 10 or older (%s months). Unable to calculate wfa.", 
+                                number, age_months)
         else:
-            logging.warning("Participant #%s: Missing weight. Unable to calculate wfa and bmifa.", number)
+            logging.warning("Participant #%s: Missing weight. Unable to calculate wfa and bmifa.", 
+                            number)
         
         # Height-for-Age Calculation
         if height:
@@ -407,7 +451,8 @@ def compute_participants(participants: List[Participant], LMS_dict: Dict[str, Di
             participant.assign_LMS_values(LMS_table)
             participant.calc_z_score_standard()       
         else:
-            logging.warning("Participant #%s: Missing height. Unable to calculate hfa and bmifa.", number)
+            logging.warning("Participant #%s: Missing height. Unable to calculate hfa and bmifa.", 
+                            number)
             
         # BMI-for-Age Calculation
         if height and weight:
@@ -417,14 +462,16 @@ def compute_participants(participants: List[Participant], LMS_dict: Dict[str, Di
 
 
 def main():
-    print("This program will calculate HFA, WFA, and BMIFA z-scores from raw data on participants aged 0-19 (WFA age 0-10).")
-    print("Please save your data in a CSV file with column headers called 'number', 'birthday', 'sex', 'height', 'weight', 'date_of_visit', and 'age_months'. Order of columns and presence of other extraneous columns is unimportant.")
-    print("All dates should be in MM/DD/YYYY format. 'age_months' may be omitted if both 'birthday' and 'date_of_visit' are present.")
-    print("Weight should be in kilograms. Height should be in centimeters.")
-    print("Missing data will result in skipped computation accordingly. 'number' is unnecessary and for subject tracking only.")
-    input_participant_csv = input("Enter the name of the CSV file containing your data (including the .csv extension): ")
+    """
+    Main function to orchestrate the data import, preparation, and computation.
 
-    all_LMS_tables_dict = import_all_LMS_tables(LMS_FILE_NAMES)
+    This function manages the workflow of the script, which includes importing the provided data and requisite LMS tables,
+    creating Participant objects, computing z-scores for each of the indicators for each Participant, and outputting 
+    the results as a CSV file.
+    """
+
+    all_LMS_tables_dict = import_all_LMS_tables(LMS_FILE_PATHS)
+    input_participant_csv = get_input_csv_path()
     all_participant_objects = import_participant_data(input_participant_csv)
 
     compute_participants(all_participant_objects, all_LMS_tables_dict)
@@ -442,4 +489,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -47,3 +47,6 @@ build
 dist 
 __pycache__
 AnthroExecutable_Draft1.spec
+
+#Temporary files
+temp*
