@@ -51,7 +51,7 @@ def import_and_prepare_data(data_file_name):
     - Tuple[pd.Series, pd.Series, pd.Series, pd.Series, pd.Series]: A tuple containing the Series for weight-for-age (wfa), 
       height-for-age (hfa), BMI-for-age (bmifa), BMI-for-age for subjects over 60 months (over_60_mo_bmifa), and age.
     """
-
+    
     data_with_z_scores = pd.read_csv(data_file_name, index_col=0)
 
     # Isolate data on kids over 60 months old for overweight/obese prevalence
