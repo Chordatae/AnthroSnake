@@ -48,9 +48,9 @@ DEFAULT_OUTPUT_NAME = "output_with_z_scores.csv"
 # For IPython applications:
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
-logging.basicConfig(filename='LogOutput_1.log', level=logging.INFO, 
-                    format='%(asctime)s - %(levelname)s - %(message)s', filemode='w')
 
+logging.basicConfig(filename='AS_log.log', level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s', filemode='w')
 
 class Participant:
     # Dunder Methods

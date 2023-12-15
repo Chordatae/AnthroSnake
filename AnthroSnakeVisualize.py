@@ -1,4 +1,5 @@
 # Import Statements
+import logging
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -39,6 +40,13 @@ TEXT_X_COORDINATE = (-0.05, 0.23, 0.6)
 DATA_FILE_NAME = "output_with_z_scores.csv"
 DEFAULT_OUTPUT_NAME = "output_data_visualization.pdf"
 
+# For IPython applications:
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
+
+logging.basicConfig(filename='ASV_log.log', level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s', filemode='w')
+
 # Function Definitions
 def import_and_prepare_data(data_file_name):
     """
@@ -51,7 +59,8 @@ def import_and_prepare_data(data_file_name):
     - Tuple[pd.Series, pd.Series, pd.Series, pd.Series, pd.Series]: A tuple containing the Series for weight-for-age (wfa), 
       height-for-age (hfa), BMI-for-age (bmifa), BMI-for-age for subjects over 60 months (over_60_mo_bmifa), and age.
     """
-    
+
+    logging.info(f"Importing and preparing data from {data_file_name}.")
     data_with_z_scores = pd.read_csv(data_file_name, index_col=0)
 
     # Isolate data on kids over 60 months old for overweight/obese prevalence
@@ -67,6 +76,7 @@ def import_and_prepare_data(data_file_name):
     # Create a series for participant ages
     age_series = data_with_z_scores["age_months"]
 
+    logging.info("Data import and preparation complete.")
     return wfa_series, hfa_series, bmifa_series, over_60_mo_bmifa_series, age_series
 
 def create_figures():
@@ -80,7 +90,7 @@ def create_figures():
       additional space for text annotations.
 
     """
-
+    logging.info("Creating matplotlib figures.")
     fig1 = plt.figure(figsize=(8, 15))
     gs1 = gridspec.GridSpec(6, 1, height_ratios=[1, 0.3, 1, 0.3, 1, 0.3])
     blank_ax = fig1.add_subplot(gs1[5]) # Create space for text annotations below lowest set of axes
@@ -89,6 +99,7 @@ def create_figures():
     fig2 = plt.figure(figsize=(8, 9))
     gs2 = gridspec.GridSpec(3, 1, height_ratios=[1, 0.3, 1])
 
+    logging.info("Figures created.")
     return fig1, gs1, fig2, gs2
 
 def plot_z_distribution_kde(data, title, x_label, fig, position):
@@ -153,6 +164,7 @@ def plot_data(wfa_series, hfa_series, bmifa_series, over_60_mo_bmifa_series, age
     - Tuple[plt.Axes]: Axes objects for each of the main plots created.
     """
 
+    logging.info("Plotting data on figures.")
     wfa_ax = plot_z_distribution_kde(wfa_series, "Distribution of Weight-For-Age Z-Scores, Ages 0-10", "Z-score", fig1, gs1[0])
     hfa_ax = plot_z_distribution_kde(hfa_series, "Distribution of Height-For-Age Z-Scores", "Z-score", fig1, gs1[2])
     bmifa_ax = plot_z_distribution_kde(bmifa_series, "Distribution of BMI-For-Age Z-Scores", "Z-score", fig1, gs1[4])
@@ -173,6 +185,7 @@ def plot_data(wfa_series, hfa_series, bmifa_series, over_60_mo_bmifa_series, age
     shade_prevalence_on_distribution(over_60_mo_bmifa_series, over_60_mo_bmifa_ax, threshold=1, above=True, color=COLORS['yellow']) # Overweight
     shade_prevalence_on_distribution(over_60_mo_bmifa_series, over_60_mo_bmifa_ax, threshold=2, above=True, color=COLORS['red']) # Obese
 
+    logging.info("Figures plotted.")
     return wfa_ax, hfa_ax, bmifa_ax, over_60_mo_bmifa_ax, age_ax
 
 def compute_mean_with_CI(data, confidence):
@@ -341,6 +354,7 @@ def compute_and_display_analysis(wfa_series, hfa_series, bmifa_series, over_60_m
     - wfa_ax, hfa_ax, bmifa_ax, over_60_mo_bmifa_ax (plt.Axes): Axes objects to display the analysis results.
     """
 
+    logging.info("Computing and displaying mean Z-scores with confidence intervals.")
     # Compute mean z-scores
     wfa_mean, wfa_CI = compute_mean_with_CI(wfa_series, 0.95)
     hfa_mean, hfa_CI = compute_mean_with_CI(hfa_series, 0.95)
@@ -349,11 +363,16 @@ def compute_and_display_analysis(wfa_series, hfa_series, bmifa_series, over_60_m
     # Display means with CIs on figure
     display_all_means((wfa_ax, hfa_ax, bmifa_ax), (wfa_mean, hfa_mean, bmifa_mean), (wfa_CI, hfa_CI, bmifa_CI), 0)
 
+    logging.info("Mean Z-scores computed and displayed.")
+    logging.info("Computing and displaying malnourishment prevalences with confidence intervals.")
+
     # Compute malnourishment prevalences
     prevalence_data = compute_prevalences(wfa_series, hfa_series, bmifa_series, over_60_mo_bmifa_series)
 
     # Display prevalences with CIs on figure
     display_all_prevalences(prevalence_data, wfa_ax, hfa_ax, bmifa_ax, over_60_mo_bmifa_ax)
+
+    logging.info("Malnourishment prevalences computed and displayed.")
 
 def save_figures(fig1, fig2):
     """
@@ -367,14 +386,18 @@ def save_figures(fig1, fig2):
     - fig1 (matplotlib.figure.Figure): The first matplotlib figure to be saved.
     - fig2 (matplotlib.figure.Figure): The second matplotlib figure to be saved.
     """
-
+    
+    logging.info("Prompting user for output filename.")
     pdf_filename = input(f"Enter the name you'd like the output data visualization file to have (including the .pdf extension), or press enter for default {DEFAULT_OUTPUT_NAME}: ")
     if not pdf_filename:
         pdf_filename = DEFAULT_OUTPUT_NAME
 
+    logging.info(f"Saving output figure to {pdf_filename}.")
     with PdfPages(pdf_filename) as pdf:
         pdf.savefig(fig1.figure)
         pdf.savefig(fig2.figure)
+    
+    logging.info("Figure saved.")
 
 
 def main():
@@ -386,6 +409,7 @@ def main():
     as displaying the analysis of anthropometric indicators.
     """
 
+    logging.info("AnthroSnakeVisualize.py script beginning run from main().")
     # Import and prepare data
     wfa_series, hfa_series, bmifa_series, over_60_mo_bmifa_series, age_series = import_and_prepare_data(DATA_FILE_NAME)
 
@@ -403,11 +427,14 @@ def main():
 
     # Apply style and show plotted figures
     sns.set_style('ticks')
-    plt.show()
+    #plt.show()
 
     # Output figures as pdf
     save_figures(fig1, fig2)
 
+    logging.info("AnthroSnakeVisualize.py script completed from main().")
+
 
 if __name__ == "__main__":
     main()
+

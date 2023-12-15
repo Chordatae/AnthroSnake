@@ -39,7 +39,7 @@ Temporary Items
 # Data files for processing and their output and log files
 data*
 output*
-Log*
+*.log
 test*
 
 # Files generated during creation of executable
@@ -48,5 +48,5 @@ dist
 __pycache__
 AnthroExecutable_Draft1.spec
 
-#Temporary files
+# Temporary files
 temp*
